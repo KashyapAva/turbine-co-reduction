@@ -1,0 +1,1572 @@
+---
+title: "STAT443_Project"
+author: "Kashyap Ava"
+date: "2024-10-23"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Read the data
+
+```{r}
+library(MASS)
+turbine_data <- read.csv('/Users/kashyapava/Desktop/UIUC/SEM_3/STAT 443/Project/TurbineGroup7.csv', header = TRUE)
+head(turbine_data)
+```
+
+## Data Inspection
+
+```{r}
+summary(turbine_data)
+```
+
+```{r}
+# Correlation matrix with gradient
+corr <- cor(turbine_data)
+print(corr)
+```
+
+GTEP is highly correlated with TIT, TEY and CDP.
+
+TIT is highly correlated with TEY and CDP.
+
+TEY is highly correlated with CDP.
+
+All are positive correlations suggesting that they are directly proportional.
+
+GTEP - Gas Turbine Exhaust Pressure
+
+TIT - Turbine Inlet Temperature
+
+TEY - Turbine Energy Yield
+
+CDP - Compressor Discharge Pressure
+
+Investigating the summary of GTEP, TIT and CDP for the mid and high TEY groups can provide more info on the correlation.
+
+
+
+```{r}
+library(ggplot2)
+
+# Scatter plot of CO against TEY
+ggplot(turbine_data, aes(x = CO, y = TEY)) +
+  geom_point(color = "lightseagreen") +  # Set point color to seagreen
+  ggtitle("Plot of CO against TEY") +
+  xlab("CO") +
+  ylab("TEY") +
+  theme_minimal() + 
+  theme(panel.grid = element_blank(),  # Removes gridlines
+        axis.line = element_line(color = "black"))
+```
+
+
+```{r}
+turbine_unclean <- turbine_data
+
+# Remove the observations in the line
+turbine_clean_1 <- turbine_data[-c(5906:5930), ]
+
+# High TEY dataset
+turbine_high_1 <- turbine_clean_1[turbine_clean_1$TEY > 160, ]
+
+# Medium TEY dataset
+turbine_med_1 <- turbine_clean_1[turbine_clean_1$TEY >= 130 & turbine_clean_1$TEY <= 136, ]
+
+# Remove the NOX column
+turbine_clean_1 = turbine_clean_1[, -c(11)]
+turbine_high_1 = turbine_high_1[, -c(11)]
+turbine_med_1 = turbine_med_1[, -c(11)]
+```
+
+
+
+## Summaries of the newly formed datasets
+
+```{r}
+summary(turbine_clean_1)
+```
+
+```{r}
+# Check for values greater than 5 in the "CO" column of turbine_clean
+values_greater_than_5 <- turbine_clean_1[turbine_clean_1[, "CO"] > 9, "CO"]
+
+# Print the values
+print(values_greater_than_5)
+```
+
+There are 288 rows with CO greater than 5.
+
+There are 48 rows with CO greater than 10.
+
+There are 17 rows with CO greater than 15.
+
+There are 11 rows with CO greater than 20.
+
+There are 9 rows with CO greater than 25.
+
+Choose 10 to be the max CO value and hence treat the 48 rows to be the outliers.
+
+
+```{r}
+# Load required library
+library(ggplot2)
+
+# Calculate the quantiles
+quantiles <- quantile(turbine_clean_1$CO, probs = c(0.90, 0.95, 0.99))
+
+# Create a density plot to visualize the distribution of CO values
+density_CO <- ggplot(turbine_clean_1, aes(x = CO)) +
+  geom_density(fill = "lightseagreen", alpha = 0.5) +
+  geom_vline(xintercept = quantiles[1], linetype = "dashed", color = "blue") +
+  geom_vline(xintercept = quantiles[2], linetype = "dashed", color = "green") +
+  geom_vline(xintercept = quantiles[3], linetype = "dashed", color = "red") +
+  labs(title = "Density Plot of CO values in turbine_clean with Quantile Lines", x = "CO", y = "Density") +
+  annotate("text", x = quantiles, y = 1.5, label = c("90th", "95th", "99th"), color = c("blue", "green", "purple"), angle = 90, vjust = -0.5) +
+  theme_minimal() + 
+  theme(panel.grid = element_blank(),  # Removes gridlines
+        axis.line = element_line(color = "black"))
+
+# Print the density plot
+print(density_CO)
+```
+
+
+```{r}
+# Calculate the 99th quantile for the CO column
+quantile_99 <- quantile(turbine_clean_1$CO, probs = 0.99)
+
+# Print the 99th quantile value
+print(quantile_99)
+```
+
+```{r}
+# Check for values greater than the 99th quantile in the "CO" column of turbine_clean
+values_greater_than_99 <- turbine_clean_1[turbine_clean_1[, "CO"] > 8.619788, "CO"]
+
+# Print the values
+print(values_greater_than_99)
+```
+
+There are 72 data points which are 1% of the data set. 
+
+We remove the ones less than this value, considering them to be outliers.
+
+```{r}
+# Ignore rows with CO values greater than 10 using logical indexing
+turbine_clean <- turbine_clean_1[turbine_clean_1[, "CO"] <= 8.618788, ]
+```
+
+```{r}
+# Load required library
+library(ggplot2)
+
+# Calculate the quantiles
+quantiles <- quantile(turbine_clean$CO, probs = c(0.90, 0.95, 0.99))
+
+# Create a density plot to visualize the distribution of CO values
+density_CO <- ggplot(turbine_clean, aes(x = CO)) +
+  geom_density(fill = "lightseagreen", alpha = 0.5) +
+  geom_vline(xintercept = quantiles[1], linetype = "dashed", color = "blue") +
+  geom_vline(xintercept = quantiles[2], linetype = "dashed", color = "green") +
+  geom_vline(xintercept = quantiles[3], linetype = "dashed", color = "red") +
+  labs(title = "Density Plot of CO values in turbine_clean with Quantile Lines", x = "CO", y = "Density") +
+  annotate("text", x = quantiles, y = 2, label = c("90th", "95th", "99th"), color = c("blue", "green", "purple"), angle = 90, vjust = -0.5)
+
+# Print the density plot
+print(density_CO)
+```
+
+```{r}
+# Correlation matrix with gradient
+corr <- cor(turbine_clean)
+print(corr)
+```
+
+GTEP is still highly correlated with TIT, TEY and CDP.
+
+TIT is still highly correlated with TEY and CDP.
+
+TEY is still highly correlated with CDP.
+
+All are positive correlations suggesting that they are directly proportional.
+
+```{r}
+# High TEY dataset
+turbine_high <- turbine_clean[turbine_clean$TEY > 160, ]
+
+# Medium TEY dataset
+turbine_med <- turbine_clean[turbine_clean$TEY >= 130 & turbine_clean$TEY <= 136, ]
+```
+
+```{r}
+summary(turbine_high)
+```
+
+```{r}
+# Check for values greater than 5 in the "CO" column of turbine_high
+values_greater_than_5 <- turbine_high[turbine_high[, "CO"] > 4, "CO"]
+
+# Print the values
+print(values_greater_than_5)
+```
+
+```{r}
+# Correlation matrix with gradient
+corr <- cor(turbine_high)
+print(corr)
+```
+
+CDP and TAT are highly and negatively correlated.
+
+CDP - Compressor Discharge Pressure
+
+TAT - Turbine After Temperature
+
+CDP varies in the range of 13.71 and 14.62.
+
+```{r}
+summary(turbine_med)
+```
+
+```{r}
+# Check for values greater than 5 in the "CO" column of turbine_med
+values_greater_than_5 <- turbine_med[turbine_med[, "CO"] > 5, "CO"]
+
+# Print the values
+print(values_greater_than_5)
+```
+
+This may be a potential outlier.
+
+```{r}
+# Ignore rows with CO values greater than 5 using logical indexing
+turbine_med <- turbine_med[turbine_med[, "CO"] <= 5, ]
+```
+
+```{r}
+# Correlation matrix with gradient
+corr <- cor(turbine_med)
+print(corr)
+```
+
+None of them are strongly correlated for the medium data set.
+
+## Data Splitting
+
+```{r}
+# Function to split data into training and test sets
+split_data <- function(data, train_proportion = 0.8, seed = 443) {
+  set.seed(seed)
+  train_indices <- sample(seq_len(nrow(data)), size = train_proportion * nrow(data))
+  train_data <- data[train_indices, ]
+  test_data <- data[-train_indices, ]
+  return(list(train = train_data, test = test_data))
+}
+```
+
+
+```{r}
+unclean_data <- split_data(turbine_unclean)
+clean_data <- split_data(turbine_clean)
+med_data <- split_data(turbine_med)
+high_data <- split_data(turbine_high)
+
+unclean_train <- unclean_data$train
+unclean_test <- unclean_data$test
+
+clean_train <- clean_data$train
+clean_test <- clean_data$test
+
+med_train <- med_data$train
+med_test <- med_data$test
+
+high_train <- high_data$train
+high_test <- high_data$test
+```
+
+
+## Model training and testing
+
+```{r}
+ols_unclean_train <- lm(CO~ AT + AP + AH + AFDP + GTEP + TIT + TEY + TAT + CDP , data = unclean_train)
+ols_clean_train <- lm(CO~AT + AP + AH + AFDP + GTEP + TIT + TEY + TAT + CDP, data = clean_train)
+ols_high_train <- lm(CO~AT + AP + AH + AFDP + GTEP + TIT + TEY + TAT + CDP, data = high_train)
+ols_med_train <- lm(CO~AT + AP + AH + AFDP + GTEP + TIT + TEY + TAT + CDP, data = med_train)
+```
+
+```{r}
+summary(ols_unclean_train)
+```
+
+
+```{r}
+summary(ols_clean_train)
+```
+
+GTEP, TIT and CDP are not significant.
+
+```{r}
+summary(ols_high_train)
+```
+
+None of the controllable variables are significant.
+
+
+```{r}
+summary(ols_med_train)
+```
+
+TIT and CDP are not significant.
+
+
+## Test results for the linear regression model
+
+```{r}
+# Predict CO values for the test data
+predictions <- predict(ols_unclean_train, newdata = unclean_test)
+
+# Combine actual and predicted values into a data frame
+results <- data.frame(Actual = unclean_test$CO, Predicted = predictions)
+
+# Calculate performance metrics
+mse <- mean((results$Actual - results$Predicted)^2)  # Mean Squared Error
+rmse <- sqrt(mse)  # Root Mean Squared Error
+mae <- mean(abs(results$Actual - results$Predicted))  # Mean Absolute Error
+
+# Calculate R-squared
+ss_res <- sum((results$Actual - results$Predicted)^2)  # Residual sum of squares
+ss_tot <- sum((results$Actual - mean(results$Actual))^2)  # Total sum of squares
+r_squared <- 1 - (ss_res / ss_tot)
+
+# Print the results
+cat("R-squared:", r_squared, "\n")
+cat("Mean Squared Error (MSE):", mse, "\n")
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+cat("Mean Absolute Error (MAE):", mae, "\n")
+```
+
+```{r}
+# Predict CO values for the test data
+predictions <- predict(ols_clean_train, newdata = clean_test)
+
+# Combine actual and predicted values into a data frame
+results <- data.frame(Actual = clean_test$CO, Predicted = predictions)
+
+# Calculate performance metrics
+mse <- mean((results$Actual - results$Predicted)^2)  # Mean Squared Error
+rmse <- sqrt(mse)  # Root Mean Squared Error
+mae <- mean(abs(results$Actual - results$Predicted))  # Mean Absolute Error
+
+# Calculate R-squared
+ss_res <- sum((results$Actual - results$Predicted)^2)  # Residual sum of squares
+ss_tot <- sum((results$Actual - mean(results$Actual))^2)  # Total sum of squares
+r_squared <- 1 - (ss_res / ss_tot)
+
+# Print the results
+cat("R-squared:", r_squared, "\n")
+cat("Mean Squared Error (MSE):", mse, "\n")
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+cat("Mean Absolute Error (MAE):", mae, "\n")
+```
+
+```{r}
+# Predict CO values for the test data
+predictions <- predict(ols_med_train, newdata = med_test)
+
+# Combine actual and predicted values into a data frame
+results <- data.frame(Actual = med_test$CO, Predicted = predictions)
+
+# Calculate performance metrics
+mse <- mean((results$Actual - results$Predicted)^2)  # Mean Squared Error
+rmse <- sqrt(mse)  # Root Mean Squared Error
+mae <- mean(abs(results$Actual - results$Predicted))  # Mean Absolute Error
+
+# Calculate R-squared
+ss_res <- sum((results$Actual - results$Predicted)^2)  # Residual sum of squares
+ss_tot <- sum((results$Actual - mean(results$Actual))^2)  # Total sum of squares
+r_squared <- 1 - (ss_res / ss_tot)
+
+# Print the results
+cat("R-squared:", r_squared, "\n")
+cat("Mean Squared Error (MSE):", mse, "\n")
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+cat("Mean Absolute Error (MAE):", mae, "\n")
+```
+
+```{r}
+# Predict CO values for the test data
+predictions <- predict(ols_high_train, newdata = high_test)
+
+# Combine actual and predicted values into a data frame
+results <- data.frame(Actual = high_test$CO, Predicted = predictions)
+
+# Calculate performance metrics
+mse <- mean((results$Actual - results$Predicted)^2)  # Mean Squared Error
+rmse <- sqrt(mse)  # Root Mean Squared Error
+mae <- mean(abs(results$Actual - results$Predicted))  # Mean Absolute Error
+
+# Calculate R-squared
+ss_res <- sum((results$Actual - results$Predicted)^2)  # Residual sum of squares
+ss_tot <- sum((results$Actual - mean(results$Actual))^2)  # Total sum of squares
+r_squared <- 1 - (ss_res / ss_tot)
+
+# Print the results
+cat("R-squared:", r_squared, "\n")
+cat("Mean Squared Error (MSE):", mse, "\n")
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+cat("Mean Absolute Error (MAE):", mae, "\n")
+```
+
+Linear regression model has a decent fit for the clean data. But the test results are not very promising.
+
+Since, there were highly correlated variables, lasso regression is a technique that can be used for enhancing the predictions.
+
+Linear regression models do not fit the high and med data well. More complex models are required.
+
+```{r}
+plot(ols_high_train)
+```
+
+
+## Box Cox Transformation for High Yield
+
+The linear regression assumptions atleast the normality assumption tend to work well for the high yield with box-cox transformation.
+
+The high yield model requires a box cox transformation with lambda = 0.436
+
+The medium yield model requires a box cox transformation with lambda = 0.506.
+
+```{r}
+# Set the lambda value for Box-Cox transformation
+lambda <- 0.436
+
+# Define the training data
+x_high <- as.matrix(high_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY", "TIT", "TAT", "CDP")])
+y_high <- high_train$CO
+
+# Perform the Box-Cox transformation on the response variable
+y_high_bc <- (y_high^lambda - 1) / lambda
+
+# Combine the predictors into a data frame for the lm function
+high_train_transformed <- as.data.frame(x_high)
+high_train_transformed$y_high_bc <- y_high_bc
+
+# Fit the linear model
+lm_high <- lm(y_high_bc ~ ., data = high_train_transformed)
+
+# Print the summary of the linear model
+summary(lm_high)
+```
+
+Only GTEP is significant and all the ambient variables are significant.
+
+```{r}
+# Plots to check lm assumptions
+plot(lm_high)
+```
+
+The QQ plot does not show any violations. There is some minimal trend of the residuals versus the fitted values.
+We do not have high leverage points but some high residual points.
+
+Lets look at the test results of the model to know if we require more complex models for the high data set.
+
+```{r}
+# Define the test data
+x_high_test <- as.matrix(high_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY", "TIT", "TAT", "CDP")])
+y_high_test <- high_test$CO
+
+# Combine the predictors into a data frame for predictions
+high_test_transformed <- as.data.frame(x_high_test)
+
+# Predict on the test data
+y_pred_bc <- predict(lm_high, newdata = high_test_transformed)
+
+# Back-transform the predictions to the original scale
+y_pred <- (y_pred_bc * lambda + 1)^(1 / lambda)
+
+# Calculate R2, MSE, RMSE, and MAE for the transformed model
+mse <- mean((y_high_test - y_pred)^2)
+rmse <- sqrt(mse)
+mae <- mean(abs(y_high_test - y_pred))
+ss_res <- sum((y_high_test - y_pred)^2)
+ss_tot <- sum((y_high_test - mean(y_high_test))^2)
+r2 <- 1 - (ss_res / ss_tot)
+
+# Print the evaluation metrics
+print(paste("MSE: ", mse))
+print(paste("RMSE: ", rmse))
+print(paste("MAE: ", mae))
+print(paste("R2: ", r2))
+```
+
+No significant improvement in the performance using box cox transformation. Hence conclude that more complex model is required.
+
+## Lasso Regression
+
+```{r}
+library(gamlr)
+
+x_unclean_lasso <- as.matrix(unclean_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_unclean_lasso <- unclean_train$CO
+
+x_clean_lasso <- as.matrix(clean_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_clean_lasso <- clean_train$CO
+
+x_high_lasso <- as.matrix(high_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_high_lasso <- high_train$CO
+
+x_med_lasso <- as.matrix(med_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_med_lasso <- med_train$CO
+
+
+# Fit Lasso regression models
+lasso_unclean <- gamlr(x_unclean_lasso, y_unclean_lasso, family = "gaussian")
+lasso_clean <- gamlr(x_clean_lasso, y_clean_lasso, family = "gaussian")
+lasso_high <- gamlr(x_high_lasso, y_high_lasso, family = "gaussian")
+lasso_med <- gamlr(x_med_lasso, y_med_lasso, family = "gaussian")
+```
+
+
+```{r}
+# Plot the cross-validated mean squared error
+plot(lasso_unclean)
+plot(lasso_clean)
+plot(lasso_high)
+plot(lasso_med)
+```
+
+
+```{r}
+# Get the coefficients at the optimal lambda
+coef(lasso_unclean)
+coef(lasso_clean)
+coef(lasso_high)
+coef(lasso_med)
+```
+
+```{r}
+# Function to calculate evaluation metrics
+calculate_metrics <- function(model, x, y) {
+  # Predict the values
+  y_pred <- predict(model, x)
+  
+  # Calculate residuals
+  residuals <- y - y_pred
+  
+  # Calculate metrics
+  ss_res <- sum(residuals^2)
+  ss_tot <- sum((y - mean(y))^2)
+  r2 <- 1 - (ss_res / ss_tot)
+  mse <- mean(residuals^2)
+  rmse <- sqrt(mse)
+  mae <- mean(abs(residuals))
+  
+  return(list(R2 = r2, MSE = mse, RMSE = rmse, MAE = mae))
+}
+
+# Calculate metrics for each model
+metrics_unclean <- calculate_metrics(lasso_unclean, x_unclean_lasso, y_unclean_lasso)
+metrics_clean <- calculate_metrics(lasso_clean, x_clean_lasso, y_clean_lasso)
+metrics_high <- calculate_metrics(lasso_high, x_high_lasso, y_high_lasso)
+metrics_med <- calculate_metrics(lasso_med, x_med_lasso, y_med_lasso)
+
+# Print metrics for each model
+print(paste("Metrics for turbine_unclean: R2 =", metrics_unclean$R2, "MSE =", metrics_unclean$MSE, "RMSE =", metrics_unclean$RMSE, "MAE =", metrics_unclean$MAE))
+print(paste("Metrics for turbine_clean: R2 =", metrics_clean$R2, "MSE =", metrics_clean$MSE, "RMSE =", metrics_clean$RMSE, "MAE =", metrics_clean$MAE))
+print(paste("Metrics for turbine_high: R2 =", metrics_high$R2, "MSE =", metrics_high$MSE, "RMSE =", metrics_high$RMSE, "MAE =", metrics_high$MAE))
+print(paste("Metrics for turbine_med: R2 =", metrics_med$R2, "MSE =", metrics_med$MSE, "RMSE =", metrics_med$RMSE, "MAE =", metrics_med$MAE))
+```
+
+```{r}
+# Function to calculate evaluation metrics
+calculate_metrics <- function(model, x, y) {
+  # Predict the values
+  y_pred <- predict(model, x)
+  
+  # Calculate residuals
+  residuals <- y - y_pred
+  
+  # Calculate metrics
+  ss_res <- sum(residuals^2)
+  ss_tot <- sum((y - mean(y))^2)
+  r2 <- 1 - (ss_res / ss_tot)
+  mse <- mean(residuals^2)
+  rmse <- sqrt(mse)
+  mae <- mean(abs(residuals))
+  
+  return(list(R2 = r2, MSE = mse, RMSE = rmse, MAE = mae))
+}
+
+x_unclean_lt <- as.matrix(unclean_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_unclean_lt <- unclean_test$CO
+
+x_clean_lt <- as.matrix(clean_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_clean_lt <- clean_test$CO
+
+x_high_lt <- as.matrix(high_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_high_lt <- high_test$CO
+
+x_med_lt <- as.matrix(med_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_med_lt <- med_test$CO
+
+# Calculate metrics for each test dataset
+metrics_unclean_test <- calculate_metrics(lasso_unclean, x_unclean_lt, y_unclean_lt)
+metrics_clean_test <- calculate_metrics(lasso_clean, x_clean_lt, y_clean_lt)
+metrics_high_test <- calculate_metrics(lasso_high, x_high_lt, y_high_lt)
+metrics_med_test <- calculate_metrics(lasso_med, x_med_lt, y_med_lt)
+
+# Print metrics for each test dataset
+print(paste("Metrics for test turbine_unclean: R2 =", metrics_unclean_test$R2, "MSE =", metrics_unclean_test$MSE, "RMSE =", metrics_unclean_test$RMSE, "MAE =", metrics_unclean_test$MAE))
+print(paste("Metrics for test turbine_clean: R2 =", metrics_clean_test$R2, "MSE =", metrics_clean_test$MSE, "RMSE =", metrics_clean_test$RMSE, "MAE =", metrics_clean_test$MAE))
+print(paste("Metrics for test turbine_high: R2 =", metrics_high_test$R2, "MSE =", metrics_high_test$MSE, "RMSE =", metrics_high_test$RMSE, "MAE =", metrics_high_test$MAE))
+print(paste("Metrics for test turbine_med: R2 =", metrics_med_test$R2, "MSE =", metrics_med_test$MSE, "RMSE =", metrics_med_test$RMSE, "MAE =", metrics_med_test$MAE))
+```
+
+The chosen lasso model for clean data has the predictors: AP, AFDP, TEY, TIT and TAT.
+
+The lasso model has a decent fit for the clean data.
+
+More complex models are required for med and high data.
+
+Decision trees can be promising if we want to recommend ranges for the predictors. These recommendations can be made based on the tree splits.
+
+## Decision Trees
+
+```{r}
+library(rpart)
+library(rpart.plot)
+library(caret)
+
+# Function to train and tune a decision tree model
+train_and_tune_decision_tree <- function(x_train, y_train, dataset_name) {
+  # Convert to data frame and ensure column names are set correctly
+  train_data <- data.frame(Target = y_train, x_train)
+  
+  # Define the grid of hyperparameters to tune
+  tune_grid <- expand.grid(cp = seq(0.001, 0.2, by = 0.001))
+  
+  # Train the decision tree model with tuning
+  model <- train(Target ~ ., data = train_data,
+                 method = "rpart",
+                 tuneGrid = tune_grid)
+  
+  # Plot the decision tree
+  rpart.plot(model$finalModel, main = paste("Tuned Decision Tree for", dataset_name))
+  
+  return(model)
+}
+
+# Ensure the input matrices are converted to data frames for caret
+x_unclean_dt <- unclean_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY", "TIT", "TAT", "CDP")]
+y_unclean_dt <- unclean_train$CO
+
+x_clean_dt <- clean_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY", "TIT", "TAT", "CDP")]
+y_clean_dt <- clean_train$CO
+
+x_high_dt <- high_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY", "TIT", "TAT", "CDP")]
+y_high_dt <- high_train$CO
+
+x_med_dt <- med_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY", "TIT", "TAT", "CDP")]
+y_med_dt <- med_train$CO
+
+# Train decision tree models for each dataset
+dt_model_unclean <- train_and_tune_decision_tree(x_unclean_dt, y_unclean_dt, "Unclean Data")
+dt_model_clean <- train_and_tune_decision_tree(x_clean_dt, y_clean_dt, "Clean Data")
+dt_model_high <- train_and_tune_decision_tree(x_high_dt, y_high_dt, "High Data")
+dt_model_med <- train_and_tune_decision_tree(x_med_dt, y_med_dt, "Medium Data")
+```
+
+```{r}
+# Extract the subtree starting from the node of interest
+subtree <- snip.rpart(dt_model_clean$finalModel, 3)
+subtree_2 <- snip.rpart(subtree, 4)
+
+# Plot the subtree
+rpart.plot(subtree_2, main = "Subtree from Node 2", type = 3, extra = 101)
+```
+
+```{r}
+# Function to evaluate model performance
+evaluate_model <- function(model, x_test, y_test, dataset_name) {
+  # Predict the values
+  y_pred <- predict(model, newdata = data.frame(x_test))
+  
+  # Calculate evaluation metrics
+  mse <- mean((y_test - y_pred)^2)
+  rmse <- sqrt(mse)
+  mae <- mean(abs(y_test - y_pred))
+  
+  ss_res <- sum((y_test - y_pred)^2)
+  ss_tot <- sum((y_test - mean(y_test))^2)
+  r2 <- 1 - (ss_res / ss_tot)
+  
+  # Print metrics
+  cat("\nEvaluation for", dataset_name, ":\n")
+  cat("MSE:", mse, "\n")
+  cat("RMSE:", rmse, "\n")
+  cat("MAE:", mae, "\n")
+  cat("R-squared:", r2, "\n")
+}
+
+x_unclean_dtt <- as.matrix(unclean_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_unclean_dtt <- unclean_test$CO
+
+x_clean_dtt <- as.matrix(clean_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_clean_dtt <- clean_test$CO
+
+x_high_dtt <- as.matrix(high_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_high_dtt <- high_test$CO
+
+x_med_dtt <- as.matrix(med_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_med_dtt <- med_test$CO
+
+# Evaluate the decision tree models on the test datasets
+evaluate_model(dt_model_unclean, x_unclean_dtt, y_unclean_dtt, "Unclean Data")
+evaluate_model(dt_model_clean, x_clean_dtt, y_clean_dtt, "Clean Data")
+evaluate_model(dt_model_high, x_high_dtt, y_high_dtt, "High Data")
+evaluate_model(dt_model_med, x_med_dtt, y_med_dtt, "Medium Data")
+```
+
+Again better fit for clean data, need more complex models for medium and high data.
+
+
+
+
+## Random Forest
+
+```{r}
+library(randomForest)
+
+x_unclean_rf <- as.matrix(unclean_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_unclean_rf <- unclean_train$CO
+
+x_clean_rf <- as.matrix(clean_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_clean_rf <- clean_train$CO
+
+x_high_rf <- as.matrix(high_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_high_rf <- high_train$CO
+
+x_med_rf <- as.matrix(med_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_med_rf <- med_train$CO
+```
+
+
+
+```{r}
+# Load the necessary package
+library(randomForest)
+
+# Define other hyperparameters (e.g., ntree, nodesize)
+ntree <- 400
+nodesize <- 2
+
+# Tune hyperparameters for each dataset
+tuned_rf_unclean <- tuneRF(x_unclean_rf, y_unclean_rf, mtryStart = 2, ntreeTry = ntree, stepFactor = 2)
+tuned_rf_clean <- tuneRF(x_clean_rf, y_clean_rf, mtryStart = 2, ntreeTry = ntree, stepFactor = 2)
+tuned_rf_high <- tuneRF(x_high_rf, y_high_rf, mtryStart = 2, ntreeTry = ntree, stepFactor = 2)
+tuned_rf_med <- tuneRF(x_med_rf, y_med_rf, mtryStart = 2, ntreeTry = ntree, stepFactor = 2)
+
+# Get the best mtry values from the tuning results
+best_mtry_unclean <- tuned_rf_unclean[which.min(tuned_rf_unclean[, 2]), 1]
+best_mtry_clean <- tuned_rf_clean[which.min(tuned_rf_clean[, 2]), 1]
+best_mtry_high <- tuned_rf_high[which.min(tuned_rf_high[, 2]), 1]
+best_mtry_med <- tuned_rf_med[which.min(tuned_rf_med[, 2]), 1]
+
+
+
+# Train the Random Forest models with tuned hyperparameters
+rf_unclean <- randomForest(x = x_unclean_rf, y = y_unclean_rf, 
+                           mtry = best_mtry_unclean, ntree = ntree, nodesize = nodesize)
+
+rf_clean <- randomForest(x = x_clean_rf, y = y_clean_rf, 
+                         mtry = best_mtry_clean, ntree = ntree, nodesize = nodesize)
+
+rf_high <- randomForest(x = x_high_rf, y = y_high_rf, 
+                        mtry = best_mtry_high, ntree = ntree, nodesize = nodesize)
+
+rf_med <- randomForest(x = x_med_rf, y = y_med_rf, 
+                       mtry = best_mtry_med, ntree = ntree, nodesize = nodesize)
+```
+
+
+
+```{r}
+# Function to calculate R-squared
+calc_r_squared <- function(y_true, y_pred) {
+  ss_res <- sum((y_true - y_pred)^2)
+  ss_tot <- sum((y_true - mean(y_true))^2)
+  r_squared <- 1 - (ss_res / ss_tot)
+  return(r_squared)
+}
+
+# Function to calculate RMSE
+calc_rmse <- function(actual, predicted) {
+  sqrt(mean((actual - predicted)^2))
+}
+
+# Function to calculate MAE
+calc_mae <- function(actual, predicted) {
+  mean(abs(actual - predicted))
+}
+
+# Unclean Data Evaluation
+pred_unclean <- predict(rf_unclean, x_unclean_rf)
+mse_unclean <- mean((y_unclean_rf - pred_unclean)^2)
+r2_unclean <- calc_r_squared(y_unclean_rf, pred_unclean)
+rmse_unclean <- calc_rmse(y_unclean_rf, pred_unclean)
+mae_unclean <- calc_mae(y_unclean_rf, pred_unclean)
+
+# Clean Data Evaluation
+pred_clean <- predict(rf_clean, x_clean_rf)
+mse_clean <- mean((y_clean_rf - pred_clean)^2)
+r2_clean <- calc_r_squared(y_clean_rf, pred_clean)
+rmse_clean <- calc_rmse(y_clean_rf, pred_clean)
+mae_clean <- calc_mae(y_clean_rf, pred_clean)
+
+# High Data Evaluation
+pred_high <- predict(rf_high, x_high_rf)
+mse_high <- mean((y_high_rf - pred_high)^2)
+r2_high <- calc_r_squared(y_high_rf, pred_high)
+rmse_high <- calc_rmse(y_high_rf, pred_high)
+mae_high <- calc_mae(y_high_rf, pred_high)
+
+# Medium Data Evaluation
+pred_med <- predict(rf_med, x_med_rf)
+mse_med <- mean((y_med_rf - pred_med)^2)
+r2_med <- calc_r_squared(y_med_rf, pred_med)
+rmse_med <- calc_rmse(y_med_rf, pred_med)
+mae_med <- calc_mae(y_med_rf, pred_med)
+
+# Print Results
+cat("Unclean Data - MSE:", mse_unclean, "RMSE:", rmse_unclean, "MAE:", mae_unclean, "Train R-squared:", r2_unclean, "\n")
+cat("Clean Data - MSE:", mse_clean, "RMSE:", rmse_clean, "MAE:", mae_clean, "Train R-squared:", r2_clean, "\n")
+cat("High Data - MSE:", mse_high, "RMSE:", rmse_high, "MAE:", mae_high, "Train R-squared:", r2_high, "\n")
+cat("Medium Data - MSE:", mse_med, "RMSE:", rmse_med, "MAE:", mae_med, "Train R-squared:", r2_med, "\n")
+```
+
+## Test Results for Random Forests
+
+```{r}
+# test data
+x_unclean_rft <- as.matrix(unclean_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_unclean_rft <- unclean_test$CO
+
+x_clean_rft <- as.matrix(clean_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_clean_rft <- clean_test$CO
+
+x_high_rft <- as.matrix(high_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_high_rft <- high_test$CO
+
+x_med_rft <- as.matrix(med_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_med_rft <- med_test$CO
+
+# Function to calculate RMSE
+calc_rmse <- function(actual, predicted) {
+  sqrt(mean((actual - predicted)^2))
+}
+
+# Function to calculate MAE
+calc_mae <- function(actual, predicted) {
+  mean(abs(actual - predicted))
+}
+
+# Unclean Data Evaluation
+pred_unclean <- predict(rf_unclean, x_unclean_rft)
+mse_unclean <- mean((y_unclean_rft - pred_unclean)^2)
+r2_unclean <- calc_r_squared(y_unclean_rft, pred_unclean)
+rmse_unclean <- calc_rmse(y_unclean_rft, pred_unclean)
+mae_unclean <- calc_mae(y_unclean_rft, pred_unclean)
+
+# Clean Data Evaluation
+pred_clean <- predict(rf_clean, x_clean_rft)
+mse_clean <- mean((y_clean_rft - pred_clean)^2)
+r2_clean <- calc_r_squared(y_clean_rft, pred_clean)
+rmse_clean <- calc_rmse(y_clean_rft, pred_clean)
+mae_clean <- calc_mae(y_clean_rft, pred_clean)
+
+# High Data Evaluation
+pred_high <- predict(rf_high, x_high_rft)
+mse_high <- mean((y_high_rft - pred_high)^2)
+r2_high <- calc_r_squared(y_high_rft, pred_high)
+rmse_high <- calc_rmse(y_high_rft, pred_high)
+mae_high <- calc_mae(y_high_rft, pred_high)
+
+# Medium Data Evaluation
+pred_med <- predict(rf_med, x_med_rft)
+mse_med <- mean((y_med_rft - pred_med)^2)
+r2_med <- calc_r_squared(y_med_rft, pred_med)
+rmse_med <- calc_rmse(y_med_rft, pred_med)
+mae_med <- calc_mae(y_med_rft, pred_med)
+
+# Print Results
+cat("Unclean Data - Test MSE:", mse_unclean, "Test RMSE:", rmse_unclean, "Test MAE:", mae_unclean, "Test R-squared:", r2_unclean, "\n")
+cat("Clean Data - Test MSE:", mse_clean, "Test RMSE:", rmse_clean, "Test MAE:", mae_clean, "Test R-squared:", r2_clean, "\n")
+cat("High Data - Test MSE:", mse_high, "Test RMSE:", rmse_high, "Test MAE:", mae_high, "Test R-squared:", r2_high, "\n")
+cat("Medium Data - Test MSE:", mse_med, "Test RMSE:", rmse_med, "Test MAE:", mae_med, "Test R-squared:", r2_med, "\n")
+```
+
+The random forest model works very well for the clean data and is the best model.
+
+
+
+```{r}
+# Function to extract and plot variable importances
+plot_variable_importance <- function(model, data_name) {
+  var_importance <- importance(model)
+  var_importance_df <- data.frame(Variable = rownames(var_importance), Importance = var_importance[, 1])
+  var_importance_df <- var_importance_df[order(-var_importance_df$Importance),]
+  
+  # Plot
+  ggplot(var_importance_df, aes(x = reorder(Variable, Importance), y = Importance)) +
+    geom_bar(stat = "identity") +
+    coord_flip() +
+    labs(title = paste("Variable Importance -", data_name),
+         x = "Variable",
+         y = "Importance") +
+    theme_minimal()
+}
+
+# Plot variable importances for each dataset
+plot_variable_importance(rf_unclean, "Unclean Data")
+plot_variable_importance(rf_clean, "Clean Data")
+plot_variable_importance(rf_high, "High Data")
+plot_variable_importance(rf_med, "Medium Data")
+```
+
+```{r}
+# Load required libraries
+library(randomForest)
+library(ggplot2)
+
+# Assume 'rf_model' is your trained random forest model
+# Calculate variable importance
+importance <- importance(rf_clean)
+
+# Convert to data frame for ggplot
+importance_df <- data.frame(
+  Feature = rownames(importance),
+  Coefficient = importance[, "IncNodePurity"]
+)
+
+# Order by importance
+importance_df <- importance_df[order(importance_df$Coefficient, decreasing = TRUE), ]
+
+# Create the plot
+ggplot(importance_df, aes(x = reorder(Feature, Coefficient), y = Coefficient)) +
+  geom_bar(stat = "identity", fill = "lightseagreen") +
+  labs(title = "Random Forest Feature Importances (Overall)",
+       x = "Feature",
+       y = "Coefficient") +
+  theme_minimal() +
+  coord_flip() # Flip coordinates to match the provided plot layout
+```
+
+```{r}
+# Load required libraries
+library(randomForest)
+library(ggplot2)
+
+# Assume 'rf_model' is your trained random forest model
+# Calculate variable importance
+importance <- importance(rf_med)
+
+# Convert to data frame for ggplot
+importance_df <- data.frame(
+  Feature = rownames(importance),
+  Coefficient = importance[, "IncNodePurity"]
+)
+
+# Order by importance
+importance_df <- importance_df[order(importance_df$Coefficient, decreasing = TRUE), ]
+
+# Create the plot
+ggplot(importance_df, aes(x = reorder(Feature, Coefficient), y = Coefficient)) +
+  geom_bar(stat = "identity", fill = "lightseagreen") +
+  labs(title = "Random Forest Feature Importances (Medium Yield)",
+       x = "Feature",
+       y = "Coefficient") +
+  theme_minimal() +
+  coord_flip() # Flip coordinates to match the provided plot layout
+```
+
+```{r}
+# Load required libraries
+library(randomForest)
+library(ggplot2)
+
+# Assume 'rf_model' is your trained random forest model
+# Calculate variable importance
+importance <- importance(rf_high)
+
+# Convert to data frame for ggplot
+importance_df <- data.frame(
+  Feature = rownames(importance),
+  Coefficient = importance[, "IncNodePurity"]
+)
+
+# Order by importance
+importance_df <- importance_df[order(importance_df$Coefficient, decreasing = TRUE), ]
+
+# Create the plot
+ggplot(importance_df, aes(x = reorder(Feature, Coefficient), y = Coefficient)) +
+  geom_bar(stat = "identity", fill = "lightseagreen") +
+  labs(title = "Random Forest Feature Importances (High Yield)",
+       x = "Feature",
+       y = "Coefficient") +
+  theme_minimal() +
+  coord_flip() # Flip coordinates to match the provided plot layout
+```
+
+## Plots of controllables variables versus CO for the test set
+
+
+```{r}
+# Load required library
+library(ggplot2)
+
+# Function to sort data and plot predicted vs actual trends for each variable
+plot_variable_trends <- function(test_data, model, target_col, variable_col, model_name) {
+  
+  # Add predictions to the test data
+  test_data$Predicted <- predict(model, newdata = test_data)
+  
+  # Create the plot
+  ggplot(test_data, aes_string(x = variable_col)) +
+    # Actual points
+    geom_point(aes_string(y = target_col), color = "lightseagreen", alpha = 0.6, size = 2) +
+    # Non-linear smooth trend for predicted values
+    geom_smooth(aes(y = Predicted), method = "loess", color = "black", se = FALSE, size = 1) +
+    labs(title = paste("Trend of", variable_col, "vs", target_col, "-", model_name),
+         x = variable_col,
+         y = target_col) +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    scale_y_continuous(name = target_col)
+}
+
+# List of models, their corresponding test datasets, and names
+models_list <- list(
+  #list(model = rf_unclean, test_data = unclean_test, name = "Unclean Data"),
+  list(model = rf_clean, test_data = clean_test, name = "Clean Data"),
+  list(model = rf_high, test_data = high_test, name = "High Data"),
+  list(model = rf_med, test_data = med_test, name = "Medium Data")
+)
+```
+
+
+```{r}
+
+# Variables of interest
+variables_of_interest <- c("AFDP", "GTEP", "TEY", "TIT", "TAT", "CDP")
+
+# Iterate through all models and selected variables
+for (model_info in models_list) {
+  model <- model_info$model
+  test_data <- model_info$test_data
+  model_name <- model_info$name
+  
+  # Filter variables to those of interest
+  variables <- intersect(variables_of_interest, colnames(test_data))
+  
+  # Plot trends for each variable
+  for (variable in variables) {
+    print(plot_variable_trends(test_data, model, "CO", variable, model_name))
+  }
+}
+
+```
+
+
+## Other models
+
+The RF results for high and medium data indicates over fitting to some extent.
+
+May be lets try out different hyperparameters
+
+```{r}
+library(randomForest)
+
+x_high_rf <- as.matrix(high_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_high_rf <- high_train$CO
+
+x_med_rf <- as.matrix(med_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_med_rf <- med_train$CO
+```
+
+
+```{r}
+# Load the necessary package
+library(randomForest)
+
+# Define other hyperparameters (e.g., ntree, nodesize)
+ntree <- 100
+nodesize <- 2
+
+# Tune hyperparameters for each dataset
+tuned_rf_high <- tuneRF(x_high_rf, y_high_rf, mtryStart = 2, ntreeTry = ntree, stepFactor = 2)
+tuned_rf_med <- tuneRF(x_med_rf, y_med_rf, mtryStart = 2, ntreeTry = ntree, stepFactor = 2)
+
+# Get the best mtry values from the tuning results
+best_mtry_high <- tuned_rf_high[which.min(tuned_rf_high[, 2]), 1]
+best_mtry_med <- tuned_rf_med[which.min(tuned_rf_med[, 2]), 1]
+
+# Train the Random Forest models with tuned hyperparameters
+rf_high <- randomForest(x = x_high_rf, y = y_high_rf, 
+                        mtry = best_mtry_high, ntree = ntree, nodesize = nodesize)
+
+rf_med <- randomForest(x = x_med_rf, y = y_med_rf, 
+                       mtry = best_mtry_med, ntree = ntree, nodesize = nodesize)
+```
+
+
+```{r}
+# Function to calculate R-squared
+calc_r_squared <- function(y_true, y_pred) {
+  ss_res <- sum((y_true - y_pred)^2)
+  ss_tot <- sum((y_true - mean(y_true))^2)
+  r_squared <- 1 - (ss_res / ss_tot)
+  return(r_squared)
+}
+
+# Function to calculate RMSE
+calc_rmse <- function(actual, predicted) {
+  sqrt(mean((actual - predicted)^2))
+}
+
+# Function to calculate MAE
+calc_mae <- function(actual, predicted) {
+  mean(abs(actual - predicted))
+}
+
+# High Data Evaluation
+pred_high <- predict(rf_high, x_high_rf)
+mse_high <- mean((y_high_rf - pred_high)^2)
+r2_high <- calc_r_squared(y_high_rf, pred_high)
+rmse_high <- calc_rmse(y_high_rf, pred_high)
+mae_high <- calc_mae(y_high_rf, pred_high)
+
+# Medium Data Evaluation
+pred_med <- predict(rf_med, x_med_rf)
+mse_med <- mean((y_med_rf - pred_med)^2)
+r2_med <- calc_r_squared(y_med_rf, pred_med)
+rmse_med <- calc_rmse(y_med_rf, pred_med)
+mae_med <- calc_mae(y_med_rf, pred_med)
+
+# Print Results
+cat("High Data - MSE:", mse_high, "RMSE:", rmse_high, "MAE:", mae_high, "Train R-squared:", r2_high, "\n")
+cat("Medium Data - MSE:", mse_med, "RMSE:", rmse_med, "MAE:", mae_med, "Train R-squared:", r2_med, "\n")
+```
+
+
+```{r}
+# test data
+x_high_rft <- as.matrix(high_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_high_rft <- high_test$CO
+
+x_med_rft <- as.matrix(med_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_med_rft <- med_test$CO
+
+# Function to calculate RMSE
+calc_rmse <- function(actual, predicted) {
+  sqrt(mean((actual - predicted)^2))
+}
+
+# Function to calculate MAE
+calc_mae <- function(actual, predicted) {
+  mean(abs(actual - predicted))
+}
+
+# High Data Evaluation
+pred_high <- predict(rf_high, x_high_rft)
+mse_high <- mean((y_high_rft - pred_high)^2)
+r2_high <- calc_r_squared(y_high_rft, pred_high)
+rmse_high <- calc_rmse(y_high_rft, pred_high)
+mae_high <- calc_mae(y_high_rft, pred_high)
+
+# Medium Data Evaluation
+pred_med <- predict(rf_med, x_med_rft)
+mse_med <- mean((y_med_rft - pred_med)^2)
+r2_med <- calc_r_squared(y_med_rft, pred_med)
+rmse_med <- calc_rmse(y_med_rft, pred_med)
+mae_med <- calc_mae(y_med_rft, pred_med)
+
+# Print Results
+cat("High Data - Test MSE:", mse_high, "Test RMSE:", rmse_high, "Test MAE:", mae_high, "Test R-squared:", r2_high, "\n")
+cat("Medium Data - Test MSE:", mse_med, "Test RMSE:", rmse_med, "Test MAE:", mae_med, "Test R-squared:", r2_med, "\n")
+```
+
+
+The R-squared values are not greater than 0.4.
+
+
+## Support Vector Regression
+
+```{r}
+# Train data
+x_unclean_svr <- as.matrix(unclean_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_unclean_svr <- unclean_train$CO
+
+x_clean_svr <- as.matrix(clean_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_clean_svr <- clean_train$CO
+
+x_high_svr <- as.matrix(high_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_high_svr <- high_train$CO
+
+x_med_svr <- as.matrix(med_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_med_svr <- med_train$CO
+```
+
+```{r}
+# test data
+x_unclean_svrt <- as.matrix(unclean_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_unclean_svrt <- unclean_test$CO
+
+x_clean_svrt <- as.matrix(clean_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_clean_svrt <- clean_test$CO
+
+x_high_svrt <- as.matrix(high_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_high_svrt <- high_test$CO
+
+x_med_svrt <- as.matrix(med_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_med_svrt <- med_test$CO
+```
+
+
+```{r}
+# Load library for SVM
+library(e1071)
+
+# Fit SVM regression model
+svm_model_high <- svm(x_high_svr, y_high_svr, type = "eps-regression", kernel = "radial")
+summary(svm_model_high)
+```
+
+```{r}
+# Make predictions on the test set
+predictions <- predict(svm_model_high, x_high_svrt)
+
+# Calculate RMSE, MSE, MAE, and R-squared
+actuals <- y_high_svrt  # Actual values from the test set
+
+# RMSE
+rmse <- sqrt(mean((predictions - actuals)^2))
+cat("RMSE:", rmse, "\n")
+
+# MSE
+mse <- mean((predictions - actuals)^2)
+cat("MSE:", mse, "\n")
+
+# MAE
+mae <- mean(abs(predictions - actuals))
+cat("MAE:", mae, "\n")
+
+# R-squared
+ss_total <- sum((actuals - mean(actuals))^2)
+ss_residual <- sum((actuals - predictions)^2)
+r_squared <- 1 - (ss_residual / ss_total)
+cat("R-squared:", r_squared, "\n")
+```
+
+```{r}
+# Load library for SVM
+library(e1071)
+
+# Fit SVM regression model
+svm_model_med <- svm(x_med_svr, y_med_svr, type = "eps-regression", kernel = "radial")
+summary(svm_model_med)
+```
+
+```{r}
+# Make predictions on the test set
+predictions <- predict(svm_model_med, x_med_svrt)
+
+# Calculate RMSE, MSE, MAE, and R-squared
+actuals <- y_med_svrt  # Actual values from the test set
+
+# RMSE
+rmse <- sqrt(mean((predictions - actuals)^2))
+cat("RMSE:", rmse, "\n")
+
+# MSE
+mse <- mean((predictions - actuals)^2)
+cat("MSE:", mse, "\n")
+
+# MAE
+mae <- mean(abs(predictions - actuals))
+cat("MAE:", mae, "\n")
+
+# R-squared
+ss_total <- sum((actuals - mean(actuals))^2)
+ss_residual <- sum((actuals - predictions)^2)
+r_squared <- 1 - (ss_residual / ss_total)
+cat("R-squared:", r_squared, "\n")
+```
+
+
+## XGBoost
+
+```{r}
+x_unclean_rf <- as.matrix(unclean_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_unclean_rf <- unclean_train$CO
+
+x_clean_rf <- as.matrix(clean_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_clean_rf <- clean_train$CO
+
+x_high_rf <- as.matrix(high_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_high_rf <- high_train$CO
+
+x_med_rf <- as.matrix(med_train[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_med_rf <- med_train$CO
+```
+
+```{r}
+# test data
+x_unclean_rft <- as.matrix(unclean_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_unclean_rft <- unclean_test$CO
+
+x_clean_rft <- as.matrix(clean_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_clean_rft <- clean_test$CO
+
+x_high_rft <- as.matrix(high_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_high_rft <- high_test$CO
+
+x_med_rft <- as.matrix(med_test[, c("AT", "AP", "AH", "AFDP", "GTEP", "TEY","TIT", "TAT", "CDP")])
+y_med_rft <- med_test$CO
+```
+
+
+
+```{r}
+library(xgboost)
+
+# Prepare the data for XGBoost
+dtrain <- xgb.DMatrix(data = x_high_rf, label = y_high_rf)
+
+# Train the XGBoost model
+xgb_model_high <- xgboost(data = dtrain, objective = "reg:squarederror", nrounds = 80)
+```
+
+
+```{r}
+dtest <- xgb.DMatrix(data = x_high_rf)  # Your test dataset features
+
+# Make predictions on the test set
+predictions <- predict(xgb_model_high, dtest)
+
+# Calculate RMSE, MSE, MAE, and R-squared
+actuals <- y_high_rf  # Actual values from the test set
+
+# RMSE
+rmse <- sqrt(mean((predictions - actuals)^2))
+cat("Train RMSE:", rmse, "\n")
+
+# MSE
+mse <- mean((predictions - actuals)^2)
+cat("Train MSE:", mse, "\n")
+
+# MAE
+mae <- mean(abs(predictions - actuals))
+cat("Train MAE:", mae, "\n")
+
+# R-squared
+ss_total <- sum((actuals - mean(actuals))^2)
+ss_residual <- sum((actuals - predictions)^2)
+r_squared <- 1 - (ss_residual / ss_total)
+cat("Train R-squared:", r_squared, "\n")
+
+# Feature importance
+importance <- xgb.importance(feature_names = colnames(x_high_rf), model = xgb_model_high)
+xgb.plot.importance(importance)
+```
+
+```{r}
+dtest <- xgb.DMatrix(data = x_high_rft)  # Your test dataset features
+
+# Make predictions on the test set
+predictions <- predict(xgb_model_high, dtest)
+
+# Calculate RMSE, MSE, MAE, and R-squared
+actuals <- y_high_rft  # Actual values from the test set
+
+# RMSE
+rmse <- sqrt(mean((predictions - actuals)^2))
+cat("RMSE:", rmse, "\n")
+
+# MSE
+mse <- mean((predictions - actuals)^2)
+cat("MSE:", mse, "\n")
+
+# MAE
+mae <- mean(abs(predictions - actuals))
+cat("MAE:", mae, "\n")
+
+# R-squared
+ss_total <- sum((actuals - mean(actuals))^2)
+ss_residual <- sum((actuals - predictions)^2)
+r_squared <- 1 - (ss_residual / ss_total)
+cat("R-squared:", r_squared, "\n")
+
+# Feature importance
+importance <- xgb.importance(feature_names = colnames(x_high_rf), model = xgb_model_high)
+xgb.plot.importance(importance)
+
+```
+
+
+```{r}
+library(xgboost)
+
+# Prepare the data for XGBoost
+dtrain <- xgb.DMatrix(data = x_med_rf, label = y_med_rf)
+
+# Train the XGBoost model
+xgb_model_med <- xgboost(data = dtrain, objective = "reg:squarederror", nrounds = 40)
+```
+
+
+```{r}
+dtest <- xgb.DMatrix(data = x_med_rf)  # Your test dataset features
+
+# Make predictions on the test set
+predictions <- predict(xgb_model_med, dtest)
+
+# Calculate RMSE, MSE, MAE, and R-squared
+actuals <- y_med_rf  # Actual values from the test set
+
+# RMSE
+rmse <- sqrt(mean((predictions - actuals)^2))
+cat("Train RMSE:", rmse, "\n")
+
+# MSE
+mse <- mean((predictions - actuals)^2)
+cat("Train MSE:", mse, "\n")
+
+# MAE
+mae <- mean(abs(predictions - actuals))
+cat("Train MAE:", mae, "\n")
+
+# R-squared
+ss_total <- sum((actuals - mean(actuals))^2)
+ss_residual <- sum((actuals - predictions)^2)
+r_squared <- 1 - (ss_residual / ss_total)
+cat("Train R-squared:", r_squared, "\n")
+
+# Feature importance
+importance <- xgb.importance(feature_names = colnames(x_high_rf), model = xgb_model_med)
+xgb.plot.importance(importance)
+```
+
+
+```{r}
+dtest <- xgb.DMatrix(data = x_med_rft)  # Your test dataset features
+
+# Make predictions on the test set
+predictions <- predict(xgb_model_med, dtest)
+
+# Calculate RMSE, MSE, MAE, and R-squared
+actuals <- y_med_rft  # Actual values from the test set
+
+# RMSE
+rmse <- sqrt(mean((predictions - actuals)^2))
+cat("RMSE:", rmse, "\n")
+
+# MSE
+mse <- mean((predictions - actuals)^2)
+cat("MSE:", mse, "\n")
+
+# MAE
+mae <- mean(abs(predictions - actuals))
+cat("MAE:", mae, "\n")
+
+# R-squared
+ss_total <- sum((actuals - mean(actuals))^2)
+ss_residual <- sum((actuals - predictions)^2)
+r_squared <- 1 - (ss_residual / ss_total)
+cat("R-squared:", r_squared, "\n")
+
+# Feature importance
+importance <- xgb.importance(feature_names = colnames(x_high_rf), model = xgb_model_med)
+xgb.plot.importance(importance)
+```
+
+```{r}
+library(xgboost)
+
+# Prepare the data for XGBoost
+dtrain <- xgb.DMatrix(data = x_clean_rf, label = y_clean_rf)
+
+# Train the XGBoost model
+xgb_model_clean <- xgboost(data = dtrain, objective = "reg:squarederror", nrounds = 50)
+```
+
+```{r}
+dtest <- xgb.DMatrix(data = x_clean_rf)  # Your test dataset features
+
+# Make predictions on the test set
+predictions <- predict(xgb_model_clean, dtest)
+
+# Calculate RMSE, MSE, MAE, and R-squared
+actuals <- y_clean_rf  # Actual values from the test set
+
+# RMSE
+rmse <- sqrt(mean((predictions - actuals)^2))
+cat("Train RMSE:", rmse, "\n")
+
+# MSE
+mse <- mean((predictions - actuals)^2)
+cat("Train MSE:", mse, "\n")
+
+# MAE
+mae <- mean(abs(predictions - actuals))
+cat("Train MAE:", mae, "\n")
+
+# R-squared
+ss_total <- sum((actuals - mean(actuals))^2)
+ss_residual <- sum((actuals - predictions)^2)
+r_squared <- 1 - (ss_residual / ss_total)
+cat("Train R-squared:", r_squared, "\n")
+
+# Feature importance
+importance <- xgb.importance(feature_names = colnames(x_high_rf), model = xgb_model_clean)
+xgb.plot.importance(importance)
+```
+
+```{r}
+dtest <- xgb.DMatrix(data = x_clean_rft)  # Your test dataset features
+
+# Make predictions on the test set
+predictions <- predict(xgb_model_clean, dtest)
+
+# Calculate RMSE, MSE, MAE, and R-squared
+actuals <- y_clean_rft  # Actual values from the test set
+
+# RMSE
+rmse <- sqrt(mean((predictions - actuals)^2))
+cat("RMSE:", rmse, "\n")
+
+# MSE
+mse <- mean((predictions - actuals)^2)
+cat("MSE:", mse, "\n")
+
+# MAE
+mae <- mean(abs(predictions - actuals))
+cat("MAE:", mae, "\n")
+
+# R-squared
+ss_total <- sum((actuals - mean(actuals))^2)
+ss_residual <- sum((actuals - predictions)^2)
+r_squared <- 1 - (ss_residual / ss_total)
+cat("R-squared:", r_squared, "\n")
+
+# Feature importance
+importance <- xgb.importance(feature_names = colnames(x_high_rf), model = xgb_model_clean)
+xgb.plot.importance(importance)
+```
+
+
+
+

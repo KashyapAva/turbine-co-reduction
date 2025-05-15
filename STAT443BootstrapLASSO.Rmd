@@ -1,0 +1,212 @@
+---
+title: "STAT443 LASSO and Bootstrap LASSO"
+author: "Christopher Cebra"
+date: "2024-11-06"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(MASS)
+knitr::opts_chunk$set(echo = TRUE)
+turbine = read_csv("TurbineGroup7.csv")
+```
+
+```{r cleaning}
+turbine_clean = turbine[-c(5906:5930),]
+turbine_high = turbine_clean |> 
+  filter(TEY > 160)
+turbine_med = turbine_clean |> 
+  filter(TEY >= 130) |> 
+  filter(TEY <= 136)
+turbine_clean = turbine_clean[, -c(11)]
+turbine_high = turbine_high[, -c(11)]
+turbine_med = turbine_med[, -c(11)]
+```
+
+```{r models}
+ols_cleansqrt = glm(sqrt(CO)~GTEP+TIT+TAT+CDP , data = turbine_clean)
+ols_clean = glm(CO~GTEP+TIT+TAT+CDP+TEY+AH+AP+AT , data = turbine_clean)
+ols_high = glm(CO~GTEP+TIT+TAT+CDP+TEY+AH+AP+AT , data = turbine_high)
+ols_med = glm(CO~GTEP+TIT+TAT+CDP+TEY+AH+AP+AT , data = turbine_med)
+summary(ols_clean)
+summary(ols_high)
+summary(ols_med)
+#plot(ols_clean)
+##plot(ols_med)
+#turbine_med[2054:2055,]
+```
+
+# High model
+First LASSO:
+```{r lasso high}
+library(gamlr)
+P = subset(turbine_high, select = -c(CO))
+Y = turbine_high$CO
+# Fit LASSO model
+lasso1<- gamlr(x=P, y=Y, standardize=FALSE,family="gaussian",lambda.min.ratio=1e-3)
+
+coef(lasso1)
+plot(lasso1)
+
+dev <- lasso1$deviance[which.min(AICc(lasso1))] # this is the deviance #of the AICc selected model
+dev0<- lasso1$deviance[1]
+1-dev/dev0
+```
+Bootstrap CIs for covariates:
+
+```{r bootstrap lasso}
+set.seed(433)
+nrun = 100
+n = nrow(P)
+coef <- matrix(, nrow=nrun,ncol=ncol(P)+1)
+Rsqhigh <- rep(0,nrun)
+for (i in 1:nrun){
+  ib <- sample(1:n,n,replace=TRUE)
+  Xib <- P[ib,]
+  Yib <- Y[ib]
+  fb <- gamlr(x=Xib, y=Yib, standardize=FALSE,family="gaussian",lambda.min.ratio=1e-3)
+  Betas <- drop(coef(fb))
+  coef[i,1] <- Betas[names(Betas)=="intercept"]
+  coef[i,2] <- Betas[names(Betas)=="AT"]
+  coef[i,3] <- Betas[names(Betas)=="AP"]
+  coef[i,4] <- Betas[names(Betas)=="AH"]
+  coef[i,5] <- Betas[names(Betas)=="AFDP"]
+  coef[i,6] <- Betas[names(Betas)=="GTEP"]
+  coef[i,7] <- Betas[names(Betas)=="TIT"]
+  coef[i,8] <- Betas[names(Betas)=="TAT"]
+  coef[i,9] <- Betas[names(Betas)=="TEY"]
+  coef[i,10] <- Betas[names(Betas)=="CDP"]
+  dev <- fb$deviance[which.min(AICc(fb))] # this is the deviance #of the AICc selected model
+  dev0<- fb$deviance[1]
+  Rsqhigh[i] <- 1-dev/dev0
+}
+```
+
+```{r}
+library(matrixStats)
+probs <- c(0.05, 0.95)
+high <- data.frame(coef)
+colnames(high) = c("Intercept", "AT", "AP", "AH", "AFDP", "GTEP", "TIT", "TAT", "TEY", "CDP")
+high_sel <- subset(high,select=-c(Intercept))
+ggplot(stack(high_sel), aes(x = ind, y = values, color=ind)) +
+  geom_boxplot() +
+  labs(title="Bootstrap for Variable Coefficients (High TEY)",x="Variable", y = "")
+q_high <- colQuantiles(coef, probs = probs)
+q_high <- data.frame(q_high)
+rownames(q_high) = c("Intercept", "AT", "AP", "AH", "AFDP", "GTEP", "TIT", "TAT", "TEY", "CDP")
+colnames(q_high) = c("Low", "High")
+q_high
+summary(Rsqhigh)
+```
+
+# Full model
+```{r full model}
+library(gamlr)
+P = subset(turbine_clean, select = -c(CO))
+Y = turbine_clean$CO
+# Fit LASSO model
+lasso2<- gamlr(x=P, y=Y, standardize=FALSE,family="gaussian",lambda.min.ratio=1e-3)
+
+coef(lasso2)
+plot(lasso2)
+
+dev <- lasso2$deviance[which.min(AICc(lasso1))] # this is the deviance #of the AICc selected model
+dev0<- lasso2$deviance[1]
+1-dev/dev0
+
+set.seed(433)
+nrun = 100
+n = nrow(P)
+coef <- matrix(, nrow=nrun,ncol=ncol(P)+1)
+Rsqfull <- rep(0,nrun)
+for (i in 1:nrun){
+  ib <- sample(1:n,n,replace=TRUE)
+  Xib <- P[ib,]
+  Yib <- Y[ib]
+  fb <- gamlr(x=Xib, y=Yib, standardize=FALSE,family="gaussian",lambda.min.ratio=1e-3)
+  Betas <- drop(coef(fb))
+  coef[i,1] <- Betas[names(Betas)=="intercept"]
+  coef[i,2] <- Betas[names(Betas)=="AT"]
+  coef[i,3] <- Betas[names(Betas)=="AP"]
+  coef[i,4] <- Betas[names(Betas)=="AH"]
+  coef[i,5] <- Betas[names(Betas)=="AFDP"]
+  coef[i,6] <- Betas[names(Betas)=="GTEP"]
+  coef[i,7] <- Betas[names(Betas)=="TIT"]
+  coef[i,8] <- Betas[names(Betas)=="TAT"]
+  coef[i,9] <- Betas[names(Betas)=="TEY"]
+  coef[i,10] <- Betas[names(Betas)=="CDP"]
+  dev <- fb$deviance[which.min(AICc(fb))] # this is the deviance #of the AICc selected model
+  dev0<- fb$deviance[1]
+  Rsqfull[i] <- 1-dev/dev0
+}
+
+probs <- c(0.05, 0.95)
+full <- data.frame(coef)
+colnames(full) = c("Intercept", "AT", "AP", "AH", "AFDP", "GTEP", "TIT", "TAT", "TEY", "CDP")
+full_sel <- subset(full,select=-c(Intercept))
+ggplot(stack(full_sel), aes(x = ind, y = values, color=ind)) +
+  geom_boxplot() +
+  labs(title="Bootstrap for Variable Coefficients (Full Model)",x="Variable", y = "")
+q_full <- colQuantiles(coef, probs = probs)
+q_full <- data.frame(q_full)
+rownames(q_full) = c("Intercept", "AT", "AP", "AH", "AFDP", "GTEP", "TIT", "TAT", "TEY", "CDP")
+colnames(q_full) = c("Low", "High")
+q_full
+summary(Rsqfull)
+```
+
+# Medium model
+```{r}
+P = subset(turbine_med, select = -c(CO))
+Y = turbine_med$CO
+# Fit LASSO model
+lasso3<- gamlr(x=P, y=Y, standardize=FALSE,family="gaussian",lambda.min.ratio=1e-3)
+
+coef(lasso3)
+plot(lasso3)
+
+dev <- lasso3$deviance[which.min(AICc(lasso1))] # this is the deviance #of the AICc selected model
+dev0<- lasso3$deviance[1]
+1-dev/dev0
+
+set.seed(433)
+nrun = 100
+n = nrow(P)
+coef <- matrix(, nrow=nrun,ncol=ncol(P)+1)
+Rsqmed <- rep(0,nrun)
+for (i in 1:nrun){
+  ib <- sample(1:n,n,replace=TRUE)
+  Xib <- P[ib,]
+  Yib <- Y[ib]
+  fb <- gamlr(x=Xib, y=Yib, standardize=FALSE,family="gaussian",lambda.min.ratio=1e-3)
+  Betas <- drop(coef(fb))
+  coef[i,1] <- Betas[names(Betas)=="intercept"]
+  coef[i,2] <- Betas[names(Betas)=="AT"]
+  coef[i,3] <- Betas[names(Betas)=="AP"]
+  coef[i,4] <- Betas[names(Betas)=="AH"]
+  coef[i,5] <- Betas[names(Betas)=="AFDP"]
+  coef[i,6] <- Betas[names(Betas)=="GTEP"]
+  coef[i,7] <- Betas[names(Betas)=="TIT"]
+  coef[i,8] <- Betas[names(Betas)=="TAT"]
+  coef[i,9] <- Betas[names(Betas)=="TEY"]
+  coef[i,10] <- Betas[names(Betas)=="CDP"]
+  dev <- fb$deviance[which.min(AICc(fb))] # this is the deviance #of the AICc selected model
+  dev0<- fb$deviance[1]
+  Rsqmed[i] <- 1-dev/dev0
+}
+
+probs <- c(0.05, 0.95)
+med <- data.frame(coef)
+colnames(med) = c("Intercept", "AT", "AP", "AH", "AFDP", "GTEP", "TIT", "TAT", "TEY", "CDP")
+med_sel <- subset(med,select=-c(Intercept))
+ggplot(stack(med_sel), aes(x = ind, y = values, color=ind)) +
+  geom_boxplot() +
+  labs(title="Bootstrap for Variable Coefficients (Medium TEY)",x="Variable", y = "")
+q_med <- colQuantiles(coef, probs = probs)
+q_med <- data.frame(q_med)
+rownames(q_med) = c("Intercept", "AT", "AP", "AH", "AFDP", "GTEP", "TIT", "TAT", "TEY", "CDP")
+colnames(q_med) = c("Low", "High")
+q_med
+summary(Rsqmed)
+```

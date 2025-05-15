@@ -1,0 +1,116 @@
+---
+title: '443'
+author: "Mitchell Cappel (Mcappel2)"
+date: "2024-11-06"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+turbine = read_csv("TurbineGroup7.csv")
+library(tidyverse)
+library(MASS)
+```
+
+# Setting the model
+
+```{r cleaning}
+turbine_clean = turbine[-c(5906:5930),]
+turbine_high = turbine_clean |> 
+  filter(TEY > 160)
+turbine_med = turbine_clean |> 
+  filter(TEY >= 130) |> 
+  filter(TEY <= 136)
+turbine_clean = turbine_clean[, -c(11)]
+turbine_high = turbine_high[, -c(11)]
+turbine_med = turbine_med[, -c(11)]
+```
+
+```{r models}
+ols_clean = lm(CO**0.35~., data = turbine_clean)
+ols_high = lm(CO**0.436~., data = turbine_high)
+ols_med = lm(CO**0.506~., data = turbine_med)
+```
+
+
+
+# Whole Model
+
+``` {r tests}
+# leverage
+hatv = hatvalues(ols_clean)
+rows = row.names(turbine_clean)
+halfnorm(hatv, labs = rows, ylab = "leverages")
+turbine_clean
+# Outliers
+stud = rstudent(ols_clean)
+stud[which.max(abs(stud))]
+qt(.05 / (7133 * 2), 7123)
+sort(abs(stud), decreasing = T)
+# IO
+cook = cooks.distance(ols_clean)
+halfnorm(cook,4,labs=rows)
+```
+
+```{r newclean}
+cleannew = turbine_clean[-c(6232, 1271, 89, 79, 90, 6819, 6818, 88, 81, 82, 87, 4864, 92, 168, 93, 80, 6771, 4865, 402, 245, 84, 6794, 
+                            102, 3932, 86, 260, 6451, 473, 5789, 6266, 59, 83, 1271, 91, 6233, 6234, 7014, 5790),]
+newclean = lm(CO**0.35~., data = cleannew)
+summary(newclean)
+plot(newclean)
+```
+
+
+
+# High Model 
+
+``` {r tests}
+# leverage
+hatv = hatvalues(ols_high)
+rows = row.names(turbine_high)
+halfnorm(hatv, labs = rows, ylab = "leverages")
+turbine_high
+# Outliers
+stud = rstudent(ols_high)
+stud[which.max(abs(stud))]
+qt(.05 / (246 * 2), 236)
+sort(abs(stud), decreasing = T)
+# IO
+cook = cooks.distance(ols_high)
+halfnorm(cook,4,labs=rows)
+```
+
+
+```{r newclean}
+highcleannew = turbine_high[-c(112, 197),]
+newclean = lm(CO**0.436~., data = highcleannew)
+summary(newclean)
+plot(newclean)
+```
+
+
+# Med Model
+
+``` {r tests}
+# leverage
+hatv = hatvalues(ols_med)
+rows = row.names(turbine_med)
+halfnorm(hatv, labs = rows, ylab = "leverages")
+turbine_med
+# Outliers
+stud = rstudent(ols_med)
+stud[which.max(abs(stud))]
+qt(.05 / (2061 * 2), 2051)
+sort(abs(stud), decreasing = T)
+# IO
+cook = cooks.distance(ols_med)
+halfnorm(cook,4,labs=rows)
+```
+
+
+```{r newclean}
+medcleannew = turbine_med[-c(2055, 68, 71, 183, 40, 20, 189, 166, 165, 39, 1858, 1256),]
+newclean = lm(CO**0.506~., data = medcleannew)
+summary(newclean)
+plot(newclean)
+```
